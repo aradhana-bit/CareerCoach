@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { resume, interview, history } from '../controllers/generationController.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { generationLimit } from '../middleware/generationLimit.js';
+const router = Router();
+router.use(protect);
+router.get('/', history);
+router.post('/resume', generationLimit, resume);
+router.post('/interview', generationLimit, interview);
+export default router;

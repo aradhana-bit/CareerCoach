@@ -1,0 +1,183 @@
+{
+  "info": {
+    "_postman_id": "c2d1a40a-2f9b-4db4-9c54-9b54d4f2c201",
+    "name": "CareerCoach API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Demo User\",\"email\":\"demo@example.com\",\"password\":\"password123\"}"
+        },
+        "url": "{{baseUrl}}/api/auth/register"
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"demo@example.com\",\"password\":\"password123\"}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Refresh token",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"refreshToken\":\"{{refreshToken}}\"}"
+        },
+        "url": "{{baseUrl}}/api/auth/refresh"
+      }
+    },
+    {
+      "name": "Get profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/profile/me"
+      }
+    },
+    {
+      "name": "Save profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"headline\":\"Computer Science student\",\"targetRole\":\"Frontend Developer\",\"skills\":[\"React\",\"JavaScript\",\"Python\"],\"education\":[{\"degree\":\"B.Tech\",\"field\":\"CSE\",\"institution\":\"Your University\"}],\"projects\":[{\"name\":\"Student Portal\",\"technologies\":[\"React\",\"Node.js\"],\"description\":\"A student portal project\"}]}"
+        },
+        "url": "{{baseUrl}}/api/profile/me"
+      }
+    },
+    {
+      "name": "Generate resume",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/api/generations/resume"
+      }
+    },
+    {
+      "name": "Generate interview questions",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"Frontend Developer\"}"
+        },
+        "url": "{{baseUrl}}/api/generations/interview"
+      }
+    },
+    {
+      "name": "Generation history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/generations"
+      }
+    },
+    {
+      "name": "Admin usage report",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/usage"
+      }
+    }
+  ]
+}
