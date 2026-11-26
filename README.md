@@ -5,26 +5,26 @@
 </p>
 
 <p align="center">
-  A full-stack career preparation workspace with profile management, resume content generation, interview practice, and saved generation history.
+  A full-stack career preparation workspace for building a professional profile, generating resume-ready content, practising interviews, and tracking your progress.
 </p>
 
 ---
 
 ## Overview
 
-CareerCoach is a web application that helps users organize their professional information and prepare for career opportunities from one place. Users can create an account, maintain a career profile, generate resume-ready content, practise interview questions for a target role, and revisit previous generations.
+CareerCoach brings essential career-preparation tools into one workspace. Users can create an account, maintain a structured career profile, generate resume content, practise role-specific interview questions, and revisit previous generations.
 
-The project currently includes a **demo generation adapter**. Resume summaries and interview questions are generated using deterministic templates; connect an AI provider in `backend/services/aiService.js` to enable live model-generated content.
+The backend uses PostgreSQL with Neon as the hosted database. The current generation service is a deterministic demo adapter; it does not call a live AI model yet.
 
 ## Features
 
-- **Authentication:** Registration, login, logout, access tokens, refresh-token rotation, and role-based access.
-- **Career profile:** Manage headline, target role, skills, education, experience, and projects.
-- **Resume assistant:** Generate a professional summary and resume bullet points from the saved profile.
-- **Interview practice:** Generate a starter set of questions for a selected role.
+- **Authentication:** Registration, login, logout, JWT access tokens, and refresh-token rotation.
+- **Career profile:** Manage professional headline, target role, skills, education, experience, and projects.
+- **Resume assistant:** Generate a professional summary and achievement-style bullet points from the saved profile.
+- **Interview practice:** Generate a starter question set for a selected target role.
 - **Generation history:** Save and revisit resume and interview outputs.
-- **Admin dashboard:** View user and generation usage summaries.
-- **API protection:** Protected routes, admin authorization, password hashing, generation rate limiting, and centralized error handling.
+- **Admin dashboard:** Review total users, total generations, and per-user usage.
+- **Security:** bcrypt password hashing, hashed refresh-token storage, protected routes, role-based admin access, and hourly generation limits.
 
 ## Technology Stack
 
@@ -33,22 +33,27 @@ The project currently includes a **demo generation adapter**. Resume summaries a
 | Frontend | React 18, Vite, React Router |
 | Styling | Custom CSS, DM Sans, Manrope |
 | Backend | Node.js, Express |
-| Database | MongoDB, Mongoose |
+| Database | PostgreSQL, Neon |
+| Database client | node-postgres (pg) |
 | Authentication | JWT, bcrypt |
 | API protection | Express Rate Limit |
 
-## Application Structure
+## Project Structure
 
 ```text
 CareerCoach/
 ├── backend/
 │   ├── config/
+│   │   └── db.js
 │   ├── controllers/
+│   ├── db/
+│   │   └── schema.sql
 │   ├── middleware/
-│   ├── models/
 │   ├── routes/
 │   ├── services/
+│   │   └── aiService.js
 │   ├── utils/
+│   ├── .env.example
 │   ├── app.js
 │   └── server.js
 └── frontend/
@@ -67,7 +72,7 @@ CareerCoach/
 
 - Node.js 18 or later
 - npm
-- A MongoDB database (local MongoDB or MongoDB Atlas)
+- A PostgreSQL database (Neon is used for the hosted project)
 
 ### 1. Clone the repository
 
@@ -76,35 +81,55 @@ git clone https://github.com/aradhana-bit/CareerCoach.git
 cd CareerCoach
 ```
 
-### 2. Configure the backend
+### 2. Configure the database
+
+Create a PostgreSQL database, then run the SQL in `backend/db/schema.sql` against it. This creates the `users`, `profiles`, and `generations` tables and their indexes.
+
+### 3. Configure and run the backend
 
 ```bash
 cd backend
 npm install
 ```
 
-Copy the example environment file to `.env` and replace the placeholder values:
+Copy `.env.example` to `.env` and set your own values:
 
-```bash
-cp .env.example .env
+```env
+PORT=5000
+DATABASE_URL=your_postgresql_connection_string
+JWT_ACCESS_SECRET=your_long_random_access_secret
+JWT_REFRESH_SECRET=your_different_long_random_refresh_secret
+ACCESS_TOKEN_MINUTES=15
+REFRESH_TOKEN_DAYS=7
+CLIENT_URL=http://localhost:5173
 ```
 
-Start the backend:
+Start the API:
 
 ```bash
 npm run dev
 ```
 
-The API runs on port `5000` by default.
+The API runs on `http://localhost:5000` by default.
 
-### 3. Configure the frontend
+### 4. Configure and run the frontend
 
 Open a second terminal:
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env
+```
+
+Create `frontend/.env` with the backend API URL:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+Start the frontend:
+
+```bash
 npm run dev
 ```
 
@@ -112,19 +137,19 @@ Open the local Vite URL shown in the terminal (normally `http://localhost:5173`)
 
 ## Environment Variables
 
-### Backend — `backend/.env`
+### Backend
 
 | Variable | Description |
 |---|---|
 | `PORT` | Backend port; defaults to `5000` |
-| `MONGO_URI` | MongoDB connection string |
+| `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_ACCESS_SECRET` | Secret used to sign access tokens |
-| `JWT_REFRESH_SECRET` | Secret used to sign refresh tokens |
+| `JWT_REFRESH_SECRET` | Separate secret used to sign refresh tokens |
 | `ACCESS_TOKEN_MINUTES` | Access-token lifetime in minutes |
 | `REFRESH_TOKEN_DAYS` | Refresh-token lifetime in days |
 | `CLIENT_URL` | Allowed frontend origin for CORS |
 
-### Frontend — `frontend/.env`
+### Frontend
 
 | Variable | Description |
 |---|---|
@@ -152,21 +177,16 @@ Authenticated endpoints require a bearer access token. The admin usage endpoint 
 
 ## AI Integration Status
 
-The current `backend/services/aiService.js` contains a demo adapter so the application can be explored without an external AI API key. To enable real AI generation, replace the adapter with a server-side provider integration. Keep provider credentials on the backend and validate generated content before using it in a real application.
+The current `backend/services/aiService.js` contains a demo adapter so the application can be explored without an external AI API key. Resume summaries and interview questions use deterministic templates. A server-side AI provider integration is a future enhancement; provider credentials must remain on the backend.
 
-## Security Notes
+## Deployment
 
-- Passwords are hashed with bcrypt before storage.
-- Refresh tokens are stored as hashes in the database.
-- Protected routes validate access tokens.
-- Admin endpoints enforce role-based authorization.
-- Generation endpoints are rate-limited.
-- Keep secrets in local environment files or a deployment secrets manager.
+For a Render backend deployment, use the repository's `backend` directory as the service root, with `npm install` as the build command and `npm start` as the start command. Configure all backend environment variables in the Render service settings. Set `CLIENT_URL` to the deployed frontend origin.
 
 ## Project Status
 
-CareerCoach is an actively improvable project. The current baseline provides the core career-profile and preparation workflow; live AI provider integration, expanded interview practice, richer resume export, and additional automated tests are potential next improvements.
+The core frontend and PostgreSQL-backed API structure are in place. Remaining production-readiness work includes end-to-end deployment verification, automated API tests, live AI provider integration, and richer resume export.
 
 ---
 
-<p align="center">Made to help turn career preparation into a more focused process.</p>
+<p align="center">Made to turn career preparation into a more focused process.</p>
