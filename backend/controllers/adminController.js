@@ -1,18 +1,15 @@
-import Generation from '../models/Generation.js';
-import User from '../models/User.js';
-
+import { pool } from '../config/db.js';
 export async function usageReport(_req, res, next) {
   try {
-    const [byUser, totals] = await Promise.all([
-      Generation.aggregate([
-        { $group: { _id: '$user', totalGenerations: { $sum: 1 }, resumeCount: { $sum: { $cond: [{ $eq: ['$type', 'resume'] }, 1, 0] } }, interviewCount: { $sum: { $cond: [{ $eq: ['$type', 'interview'] }, 1, 0] } } } },
-        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: '$user' },
-        { $project: { name: '$user.name', email: '$user.email', totalGenerations: 1, resumeCount: 1, interviewCount: 1 } },
-        { $sort: { totalGenerations: -1 } }
-      ]),
-      Promise.all([User.countDocuments(), Generation.countDocuments()])
+    const [users, generations, usage] = await Promise.all([
+      pool.query('SELECT COUNT(*)::int AS total FROM users'),
+      pool.query('SELECT COUNT(*)::int AS total FROM generations'),
+      pool.query(`SELECT u.id AS "_id",u.name,u.email,COUNT(g.id)::int AS "totalGenerations",
+        COUNT(g.id) FILTER (WHERE g.type='resume')::int AS "resumeCount",
+        COUNT(g.id) FILTER (WHERE g.type='interview')::int AS "interviewCount"
+        FROM users u LEFT JOIN generations g ON g.user_id=u.id
+        GROUP BY u.id,u.name,u.email ORDER BY "totalGenerations" DESC,u.name ASC`)
     ]);
-    res.json({ totalUsers: totals[0], totalGenerations: totals[1], usageByUser: byUser });
-  } catch (e) { next(e); }
+    res.json({ totalUsers: users.rows[0].total, totalGenerations: generations.rows[0].total, usageByUser: usage.rows });
+  } catch (error) { next(error); }
 }
