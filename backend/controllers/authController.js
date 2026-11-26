@@ -1,55 +1,56 @@
 import bcrypt from 'bcrypt';
-import User from '../models/User.js';
+import { pool } from '../config/db.js';
 import { createAccessToken, createRefreshToken, hashToken } from '../utils/tokens.js';
 import jwt from 'jsonwebtoken';
-
-const safeUser = (u) => ({ id: u._id, name: u.name, email: u.email, role: u.role });
-
+const safeUser = user => ({ id: user.id, name: user.name, email: user.email, role: user.role });
 export async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password || password.length < 8)
+    const name = String(req.body.name || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    if (!name || name.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8)
       return res.status(400).json({ message: 'Name, valid email and password (8+ characters) are required' });
-    if (await User.findOne({ email: email.toLowerCase() }))
-      return res.status(409).json({ message: 'Email is already registered' });
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ name, email, passwordHash });
-    const refresh = createRefreshToken(user);
-    user.refreshTokenHash = hashToken(refresh);
-    await user.save();
-    res.status(201).json({ user: safeUser(user), accessToken: createAccessToken(user), refreshToken: refresh });
-  } catch (e) { next(e); }
+    const result = await pool.query('INSERT INTO users (name,email,password_hash) VALUES ($1,$2,$3) RETURNING id,name,email,role', [name,email,passwordHash]);
+    const user = result.rows[0];
+    const refreshToken = createRefreshToken(user);
+    await pool.query('UPDATE users SET refresh_token_hash=$1,updated_at=NOW() WHERE id=$2', [hashToken(refreshToken),user.id]);
+    res.status(201).json({ user: safeUser(user), accessToken: createAccessToken(user), refreshToken });
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ message: 'Email is already registered' });
+    next(error);
+  }
 }
 export async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email: (email || '').toLowerCase() }).select('+passwordHash');
-    if (!user || !(await bcrypt.compare(password || '', user.passwordHash)))
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const result = await pool.query('SELECT id,name,email,role,password_hash FROM users WHERE email=$1', [email]);
+    const user = result.rows[0];
+    if (!user || !(await bcrypt.compare(String(req.body.password || ''), user.password_hash)))
       return res.status(401).json({ message: 'Invalid email or password' });
-    const refresh = createRefreshToken(user);
-    user.refreshTokenHash = hashToken(refresh);
-    await user.save();
-    res.json({ user: safeUser(user), accessToken: createAccessToken(user), refreshToken: refresh });
-  } catch (e) { next(e); }
+    const refreshToken = createRefreshToken(user);
+    await pool.query('UPDATE users SET refresh_token_hash=$1,updated_at=NOW() WHERE id=$2', [hashToken(refreshToken),user.id]);
+    res.json({ user: safeUser(user), accessToken: createAccessToken(user), refreshToken });
+  } catch (error) { next(error); }
 }
 export async function refresh(req, res) {
   try {
     const token = req.body.refreshToken;
     if (!token) return res.status(401).json({ message: 'Refresh token required' });
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.sub).select('+refreshTokenHash');
-    if (!user || user.refreshTokenHash !== hashToken(token))
+    if (decoded.type !== 'refresh') return res.status(401).json({ message: 'Invalid refresh token' });
+    const result = await pool.query('SELECT id,name,email,role,refresh_token_hash FROM users WHERE id=$1', [decoded.sub]);
+    const user = result.rows[0];
+    if (!user || user.refresh_token_hash !== hashToken(token))
       return res.status(401).json({ message: 'Refresh token is invalid or revoked' });
     const nextRefresh = createRefreshToken(user);
-    user.refreshTokenHash = hashToken(nextRefresh);
-    await user.save();
+    await pool.query('UPDATE users SET refresh_token_hash=$1,updated_at=NOW() WHERE id=$2', [hashToken(nextRefresh),user.id]);
     res.json({ accessToken: createAccessToken(user), refreshToken: nextRefresh });
   } catch { res.status(401).json({ message: 'Invalid or expired refresh token' }); }
 }
 export async function logout(req, res, next) {
   try {
-    const user = await User.findById(req.user._id).select('+refreshTokenHash');
-    if (user) { user.refreshTokenHash = null; await user.save(); }
+    await pool.query('UPDATE users SET refresh_token_hash=NULL,updated_at=NOW() WHERE id=$1', [req.user.id]);
     res.json({ message: 'Logged out' });
-  } catch (e) { next(e); }
+  } catch (error) { next(error); }
 }
